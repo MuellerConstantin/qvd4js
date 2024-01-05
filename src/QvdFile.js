@@ -10,7 +10,7 @@ export default class QvdFile {
    * Constructs a new QVD file.
    *
    * @param {String} path The path to the QVD file.
-   * @param {object} header The header of the QVD file.
+   * @param {Object} header The header of the QVD file.
    * @param {Array<Array<any>>} symbolTable The symbol table of the QVD file.
    * @param {Array<Array<Number>>} indexTable The index table of the QVD file.
    */
@@ -23,6 +23,8 @@ export default class QvdFile {
 
   /**
    * Retieves the path to the QVD file.
+   *
+   * @return {String} The path to the QVD file.
    */
   get path() {
     return this._path;
@@ -30,13 +32,17 @@ export default class QvdFile {
 
   /**
    * Retrieves the field names of the QVD file.
+   *
+   * @return {Array<String>} The field names.
    */
   get fieldNames() {
     return this._header['QvdTableHeader']['Fields']['QvdFieldHeader'].map((field) => field['FieldName']);
   }
 
   /**
-   * Retrieves the total number of rows of the QVD file.
+   * Retrieves the total number of rows of the QVD file
+   *
+   * @return {Number} The number of rows.
    */
   get numberOfRows() {
     return parseInt(this._header['QvdTableHeader']['NoOfRecords'], 10);
@@ -47,7 +53,7 @@ export default class QvdFile {
    * as the field names.
    *
    * @param {Number} index The index of the row.
-   * @return {Array} The values of the row.
+   * @return {Array<any>} The values of the row.
    */
   getRow(index) {
     if (index >= this.numberOfRows) {
@@ -63,7 +69,7 @@ export default class QvdFile {
    * Retrieves the values of all rows of the QVD file as an array of row values. Each row
    * is an array of values in the same order as the field names.
    *
-   * @return {object} The data and columns of the table.
+   * @return {{columns: Array<String>, data: Array<Array<any>>}} The columns and the data per row.
    */
   getTable() {
     const data = [];
