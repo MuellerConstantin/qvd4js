@@ -1,7 +1,7 @@
 /**
  * Represents a Qlik value, stored in a QVD file.
  */
-export default class QvdValue {
+export class QvdValue {
   /**
    * Constructs a new QVD value.
    *

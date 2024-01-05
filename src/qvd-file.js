@@ -1,11 +1,11 @@
 import fs from 'fs';
 import xml from 'xml2js';
-import QvdValue from './QvdValue.js';
+import {QvdValue} from './qvd-value';
 
 /**
  * Represents a loaded QVD file.
  */
-export default class QvdFile {
+export class QvdFile {
   /**
    * Constructs a new QVD file.
    *

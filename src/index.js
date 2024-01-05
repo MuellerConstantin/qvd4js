@@ -1,2 +1,2 @@
-export {default as QvdFile, QvdFileBuilder} from './QvdFile';
-export {default as QvdValue} from './QvdValue';
+export {QvdFile, QvdFileBuilder} from './qvd-file';
+export {QvdValue} from './qvd-value';
