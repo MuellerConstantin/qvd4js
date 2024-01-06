@@ -1,25 +1,38 @@
 {
   "name": "qvd4js",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Utility library for reading Qlik View Data (QVD) files in JavaScript.",
   "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "webpack --mode production",
-    "develop": "webpack --mode development --watch",
+    "build": "babel ./src --out-dir ./dist",
     "lint": "eslint .",
     "test": "jest .",
     "clean": "rimraf -rf dist"
   },
   "author": {
     "name": "Constantin Müller",
-    "email": "info@mueller-constantin.de"
+    "email": "info@mueller-constantin.de",
+    "url": "https://mueller-constantin.de"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MuellerConstantin/qvd4js.git"
+  },
+  "keywords": [
+    "qvd",
+    "qlik",
+    "qlik sense",
+    "qlik view"
+  ],
   "license": "MIT",
   "devDependencies": {
+    "@babel/cli": "^7.23.4",
     "@babel/core": "^7.23.7",
     "@babel/node": "^7.22.19",
     "@babel/preset-env": "^7.23.7",
-    "@babel/preset-modules": "^0.1.6",
     "babel-loader": "^9.1.3",
     "eslint": "^8.56.0",
     "eslint-config-google": "^0.14.0",
@@ -27,14 +40,15 @@
     "eslint-plugin-prettier": "^5.1.2",
     "jest": "^29.7.0",
     "prettier": "^3.1.1",
-    "rimraf": "^5.0.5",
-    "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4"
+    "rimraf": "^5.0.5"
   },
   "dependencies": {
     "xml2js": "^0.6.2"
   },
   "peerDependencies": {
     "xml2js": "^0.6.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
