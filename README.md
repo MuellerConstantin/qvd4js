@@ -85,6 +85,8 @@ object with the columns and the actual data as properties. The columns property 
 of the fields in the QVD file. The data property is an array of arrays that contains the actual data records. The order of the
 values in the inner arrays corresponds to the order of the fields in the QVD file.
 
+---
+
 ### `QvdFileParser`
 
 The class `QvdFileParser` is used to read and parse a QVD file. It contains the actual logic for reading the QVD file and
@@ -100,6 +102,8 @@ path.
 
 The method `QvdFileParser.load` reads the QVD file that was passed to the constructor and parses it. The method returns a
 promise that resolves to a `QvdFile` instance.
+
+---
 
 ### `QvdSymbol`
 
