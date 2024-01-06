@@ -1,4 +1,4 @@
 // @ts-check
 
-export {QvdFile, QvdFileBuilder} from './qvd-file';
-export {QvdValue} from './qvd-value';
+export {QvdFile, QvdFileParser} from './qvd-file';
+export {QvdSymbol} from './qvd-symbol';

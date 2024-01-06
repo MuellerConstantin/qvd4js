@@ -1,11 +1,11 @@
 // @ts-check
 
 /**
- * Represents a Qlik value, stored in a QVD file.
+ * Represents a Qlik symbol/value, stored in a QVD file.
  */
-export class QvdValue {
+export class QvdSymbol {
   /**
-   * Constructs a new QVD value.
+   * Constructs a new QVD symbol.
    *
    * @param {number|null} intValue The integer value.
    * @param {number|null} doubleValue The double value.
@@ -68,30 +68,30 @@ export class QvdValue {
    * Constructs a pure integer value symbol.
    *
    * @param {number} intValue The integer value.
-   * @return {QvdValue} The constructed value symbol.
+   * @return {QvdSymbol} The constructed value symbol.
    */
   static fromIntValue(intValue) {
-    return new QvdValue(intValue, null, null);
+    return new QvdSymbol(intValue, null, null);
   }
 
   /**
    * Constructs a pure double value symbol.
    *
    * @param {number} doubleValue The double value.
-   * @return {QvdValue} The constructed value symbol.
+   * @return {QvdSymbol} The constructed value symbol.
    */
   static fromDoublValue(doubleValue) {
-    return new QvdValue(null, doubleValue, null);
+    return new QvdSymbol(null, doubleValue, null);
   }
 
   /**
    * Constructs a pure string value symbol.
    *
    * @param {string} stringValue The string value.
-   * @return {QvdValue} The constructed value symbol.
+   * @return {QvdSymbol} The constructed value symbol.
    */
   static fromStringValue(stringValue) {
-    return new QvdValue(null, null, stringValue);
+    return new QvdSymbol(null, null, stringValue);
   }
 
   /**
@@ -99,10 +99,10 @@ export class QvdValue {
    *
    * @param {number} intValue The integer value.
    * @param {string} stringValue The string value.
-   * @return {QvdValue} The constructed value symbol.
+   * @return {QvdSymbol} The constructed value symbol.
    */
   static fromDualIntValue(intValue, stringValue) {
-    return new QvdValue(intValue, null, stringValue);
+    return new QvdSymbol(intValue, null, stringValue);
   }
 
   /**
@@ -110,9 +110,9 @@ export class QvdValue {
    *
    * @param {number} doubleValue The double value.
    * @param {string} stringValue The string value.
-   * @return {QvdValue} The constructed value symbol.
+   * @return {QvdSymbol} The constructed value symbol.
    */
   static fromDualDoubleValue(doubleValue, stringValue) {
-    return new QvdValue(null, doubleValue, stringValue);
+    return new QvdSymbol(null, doubleValue, stringValue);
   }
 }

@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import xml from 'xml2js';
-import {QvdValue} from './qvd-value';
+import {QvdSymbol} from './qvd-symbol';
 
 /**
  * @typedef {{[name: string]: any}} QvdHeader
@@ -11,7 +11,7 @@ import {QvdValue} from './qvd-value';
  * that is parsed from the XML header of the QVD file. It is important to note that the
  * object is a plain JavaScript object and not an instance of representative class. For
  * more information see the documentation of the parser implementation in
- * {@link QvdFileBuilder._parseHeader|QvdFileBuilder}.
+ * {@link QvdFileParser._parseHeader|QvdFileParser}.
  */
 
 /**
@@ -148,17 +148,17 @@ export class QvdFile {
    * @static
    */
   static async load(path) {
-    const builder = new QvdFileBuilder(path);
-    return await builder.load();
+    const parser = new QvdFileParser(path);
+    return await parser.load();
   }
 }
 
 /**
- * QVD file builder that loads and parses a QVD file.
+ * QVD file parser that loads and parses a QVD file.
  */
-export class QvdFileBuilder {
+export class QvdFileParser {
   /**
-   * Constructs a new QVD file builder.
+   * Constructs a new QVD file parser.
    *
    * @param {string} path The path to the QVD file to load.
    */
@@ -318,7 +318,7 @@ export class QvdFileBuilder {
             const value = Buffer.from(byteData).readIntLE(0, byteData.length);
 
             pointer += 3;
-            symbols.push(QvdValue.fromIntValue(value));
+            symbols.push(QvdSymbol.fromIntValue(value));
 
             break;
           }
@@ -328,7 +328,7 @@ export class QvdFileBuilder {
             const value = Buffer.from(byteData).readDoubleLE(0);
 
             pointer += 7;
-            symbols.push(QvdValue.fromDoublValue(value));
+            symbols.push(QvdSymbol.fromDoublValue(value));
 
             break;
           }
@@ -340,7 +340,7 @@ export class QvdFileBuilder {
               value += String.fromCharCode(symbolBuffer[pointer++]);
             }
 
-            symbols.push(QvdValue.fromStringValue(value));
+            symbols.push(QvdSymbol.fromStringValue(value));
 
             break;
           }
@@ -357,7 +357,7 @@ export class QvdFileBuilder {
               stringValue += String.fromCharCode(symbolBuffer[pointer++]);
             }
 
-            symbols.push(QvdValue.fromDualIntValue(intValue, stringValue));
+            symbols.push(QvdSymbol.fromDualIntValue(intValue, stringValue));
 
             break;
           }
@@ -375,7 +375,7 @@ export class QvdFileBuilder {
               stringValue += String.fromCharCode(symbolBuffer[pointer++]);
             }
 
-            symbols.push(QvdValue.fromDualDoubleValue(doubleValue, stringValue));
+            symbols.push(QvdSymbol.fromDualDoubleValue(doubleValue, stringValue));
 
             break;
           }
