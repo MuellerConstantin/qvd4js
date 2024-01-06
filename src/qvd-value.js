@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * Represents a Qlik value, stored in a QVD file.
  */
@@ -5,9 +7,9 @@ export class QvdValue {
   /**
    * Constructs a new QVD value.
    *
-   * @param {Number} intValue The integer value.
-   * @param {Number} doubleValue The double value.
-   * @param {String} stringValue The string value.
+   * @param {number|null} intValue The integer value.
+   * @param {number|null} doubleValue The double value.
+   * @param {string|null} stringValue The string value.
    */
   constructor(intValue, doubleValue, stringValue) {
     this._intValue = intValue;
@@ -20,7 +22,7 @@ export class QvdValue {
   /**
    * Returns the integer value of this symbol.
    *
-   * @return {Number} The integer value.
+   * @return {number|null} The integer value.
    */
   get intValue() {
     return this._intValue;
@@ -29,7 +31,7 @@ export class QvdValue {
   /**
    * Returns the double value of this symbol.
    *
-   * @return {Number} The double value.
+   * @return {number|null} The double value.
    */
   get doubleValue() {
     return this._doubleValue;
@@ -38,7 +40,7 @@ export class QvdValue {
   /**
    * Returns the string value of this symbol.
    *
-   * @return {String} The string value.
+   * @return {string|null} The string value.
    */
   get stringValue() {
     return this._stringValue;
@@ -48,7 +50,7 @@ export class QvdValue {
    * Retrieves the primary value of this symbol. The primary value is descriptive raw value.
    * It is either the string value, the integer value or the double value, prioritized in this order.
    *
-   * @return {Number|String} The primary value.
+   * @return {number|string|null} The primary value.
    */
   toPrimaryValue() {
     if (null != this._stringValue) {
@@ -65,7 +67,7 @@ export class QvdValue {
   /**
    * Constructs a pure integer value symbol.
    *
-   * @param {Number} intValue The integer value.
+   * @param {number} intValue The integer value.
    * @return {QvdValue} The constructed value symbol.
    */
   static fromIntValue(intValue) {
@@ -75,7 +77,7 @@ export class QvdValue {
   /**
    * Constructs a pure double value symbol.
    *
-   * @param {Number} doubleValue The double value.
+   * @param {number} doubleValue The double value.
    * @return {QvdValue} The constructed value symbol.
    */
   static fromDoublValue(doubleValue) {
@@ -85,7 +87,7 @@ export class QvdValue {
   /**
    * Constructs a pure string value symbol.
    *
-   * @param {String} stringValue The string value.
+   * @param {string} stringValue The string value.
    * @return {QvdValue} The constructed value symbol.
    */
   static fromStringValue(stringValue) {
@@ -95,8 +97,8 @@ export class QvdValue {
   /**
    * Constructs a dual value symbol from an integer and a string value.
    *
-   * @param {Number} intValue The integer value.
-   * @param {String} stringValue The string value.
+   * @param {number} intValue The integer value.
+   * @param {string} stringValue The string value.
    * @return {QvdValue} The constructed value symbol.
    */
   static fromDualIntValue(intValue, stringValue) {
@@ -106,8 +108,8 @@ export class QvdValue {
   /**
    * Constructs a dual value symbol from a double and a string value.
    *
-   * @param {Number} doubleValue The double value.
-   * @param {String} stringValue The string value.
+   * @param {number} doubleValue The double value.
+   * @param {string} stringValue The string value.
    * @return {QvdValue} The constructed value symbol.
    */
   static fromDualDoubleValue(doubleValue, stringValue) {
