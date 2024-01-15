@@ -46,6 +46,44 @@ The above example loads the _qvd4js_ module and parses an example QVD file. A QV
 `QvdFile.load` function of the `QvdFile` class itself. After loading the file's content, numerous methods and properties
 are available to work with the parsed data.
 
+## QVD File Format
+
+The QVD file format is a binary file format that is used by QlikView to store data. The format is proprietary. However,
+the format is well documented and can be parsed without the need of a QlikView installation. In fact, a QVD file consists
+of three parts: a XML header, and two binary parts, the symbol and the index table. The XML header contains meta information
+about the QVD file, such as the number of data records and the names of the fields. The symbol table contains the actual
+distinct values of the fields. The index table contains the actual data records. The index table is a list of indices
+which point to values in the symbol table.
+
+### XML Header
+
+The XML header contains meta information about the QVD file. The header is always located at the beginning of the file and
+is in human readable text format. The header contains information about the number of data records, the names of the fields,
+and the data types of the fields.
+
+### Symbol Table
+
+The symbol table contains the distinct/unique values of the fields and is located directly after the XML header. The order
+of columns in the symbol table corresponds to the order of the fields in the XML header. The length and offset of the
+symbol sections of each column are also stored in the XML header. Each symbol section consist of the unique symbols of the
+respective column. The type of a single symbol is determined by a type byte prefixed to the respective symbol value. The
+following type of symbols are supported:
+
+| Code | Type         | Description                                                                                   |
+| ---- | ------------ | --------------------------------------------------------------------------------------------- |
+| 1    | Integer      | signed 4-byte integer (little endian)                                                         |
+| 2    | Float        | signed 8-byte IEEE floating point number (little endian)                                      |
+| 4    | String       | null terminated string                                                                        |
+| 5    | Dual Integer | signed 4-byte integer (little endian) followed by a null terminated string                    |
+| 6    | Dual Float   | signed 8-byte IEEE floating point number (little endian) followed by a null terminated string |
+
+### Index Table
+
+After the symbol table, the index table follows. The index table contains the actual data records. The index table contains
+binary indices that refrences to the values of each row in the symbol table. The order of the columns in the index table
+corresponds to the order of the fields in the XML header. Hence, the index table does not contain the actual values of a
+data record, but only the indices that point to the values in the symbol table.
+
 ## API Documentation
 
 ### QvdFile
