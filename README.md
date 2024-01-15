@@ -10,6 +10,10 @@ structure. The library is written to be used in a Node.js environment exclusivel
 
 - [Install](#install)
 - [Usage](#usage)
+- [QVD File Format](#qvd-file-format)
+  - [XML Header](#xml-header)
+  - [Symbol Table](#symbol-table)
+  - [Index Table](#index-table)
 - [API Documentation](#api-documentation)
   - [QvdFile](#qvdfile)
     - [`static load(path: string): Promise<QvdFile>`](#static-loadpath-string-promiseqvdfile)
