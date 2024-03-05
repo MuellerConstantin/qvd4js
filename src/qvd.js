@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import xml from 'xml2js';
-import {QvdSymbol} from './qvd-symbol';
+import assert from 'assert';
 
 /**
  * @typedef {{[name: string]: any}} QvdHeader
@@ -32,131 +32,266 @@ import {QvdSymbol} from './qvd-symbol';
  */
 
 /**
+ * Represents a Qlik symbol/value, stored in a QVD file.
+ */
+export class QvdSymbol {
+  /**
+   * Constructs a new QVD symbol.
+   *
+   * @param {number|null} intValue The integer value.
+   * @param {number|null} doubleValue The double value.
+   * @param {string|null} stringValue The string value.
+   */
+  constructor(intValue, doubleValue, stringValue) {
+    this._intValue = intValue;
+
+    this._doubleValue = doubleValue;
+
+    this._stringValue = stringValue;
+  }
+
+  /**
+   * Returns the integer value of this symbol.
+   *
+   * @return {number|null} The integer value.
+   */
+  get intValue() {
+    return this._intValue;
+  }
+
+  /**
+   * Returns the double value of this symbol.
+   *
+   * @return {number|null} The double value.
+   */
+  get doubleValue() {
+    return this._doubleValue;
+  }
+
+  /**
+   * Returns the string value of this symbol.
+   *
+   * @return {string|null} The string value.
+   */
+  get stringValue() {
+    return this._stringValue;
+  }
+
+  /**
+   * Retrieves the primary value of this symbol. The primary value is descriptive raw value.
+   * It is either the string value, the integer value or the double value, prioritized in this order.
+   *
+   * @return {number|string|null} The primary value.
+   */
+  toPrimaryValue() {
+    if (null != this._stringValue) {
+      return this._stringValue;
+    } else if (null != this._intValue) {
+      return this._intValue;
+    } else if (null != this._doubleValue) {
+      return this._doubleValue;
+    } else {
+      return null;
+    }
+  }
+
+  /**
+   * Checks if this symbol is equal to another symbol.
+   *
+   * @param {*} value The object to compare with.
+   * @return {boolean} True if the objects are equal, false otherwise.
+   */
+  equals(value) {
+    if (!(value instanceof QvdSymbol)) {
+      return false;
+    }
+
+    return (
+      this._intValue === value.intValue &&
+      this._doubleValue === value.doubleValue &&
+      this._stringValue === value.stringValue
+    );
+  }
+
+  /**
+   * Constructs a pure integer value symbol.
+   *
+   * @param {number} intValue The integer value.
+   * @return {QvdSymbol} The constructed value symbol.
+   */
+  static fromIntValue(intValue) {
+    return new QvdSymbol(intValue, null, null);
+  }
+
+  /**
+   * Constructs a pure double value symbol.
+   *
+   * @param {number} doubleValue The double value.
+   * @return {QvdSymbol} The constructed value symbol.
+   */
+  static fromDoublValue(doubleValue) {
+    return new QvdSymbol(null, doubleValue, null);
+  }
+
+  /**
+   * Constructs a pure string value symbol.
+   *
+   * @param {string} stringValue The string value.
+   * @return {QvdSymbol} The constructed value symbol.
+   */
+  static fromStringValue(stringValue) {
+    return new QvdSymbol(null, null, stringValue);
+  }
+
+  /**
+   * Constructs a dual value symbol from an integer and a string value.
+   *
+   * @param {number} intValue The integer value.
+   * @param {string} stringValue The string value.
+   * @return {QvdSymbol} The constructed value symbol.
+   */
+  static fromDualIntValue(intValue, stringValue) {
+    return new QvdSymbol(intValue, null, stringValue);
+  }
+
+  /**
+   * Constructs a dual value symbol from a double and a string value.
+   *
+   * @param {number} doubleValue The double value.
+   * @param {string} stringValue The string value.
+   * @return {QvdSymbol} The constructed value symbol.
+   */
+  static fromDualDoubleValue(doubleValue, stringValue) {
+    return new QvdSymbol(null, doubleValue, stringValue);
+  }
+}
+
+/**
  * Represents a loaded QVD file.
  */
-export class QvdFile {
+export class QvdDataFrame {
   /**
-   * Constructs a new QVD file.
+   * Represents the data frame stored inside a QVD file.
+   * @param {Array<Array<any>>} data The data of the data frame.
+   * @param {Array<string>} columns The columns of the data frame.
+   */
+  constructor(data, columns) {
+    this._data = data;
+    this._columns = columns;
+  }
+
+  /**
+   * Returns the data of the data frame.
+   */
+  get data() {
+    return this._data;
+  }
+
+  /**
+   * Returns the columns of the data frame.
+   */
+  get columns() {
+    return this._columns;
+  }
+
+  /**
+   * Returns the shape of the data frame.
+   */
+  get shape() {
+    return [this._data.length, this._columns.length];
+  }
+
+  /**
+   * Returns the first n rows of the data frame.
+   *
+   * @param {number} n The number of rows to return.
+   * @return {QvdDataFrame} The first n rows of the data frame.
+   */
+  head(n = 5) {
+    return new QvdDataFrame(this._data.slice(0, n), this._columns);
+  }
+
+  /**
+   * Returns the last n rows of the data frame.
+   *
+   * @param {number} n The number of rows to return.
+   * @return {QvdDataFrame} The first n rows of the data frame.
+   */
+  tail(n = 5) {
+    return new QvdDataFrame(this._data.slice(-n), this._columns);
+  }
+
+  /**
+   * Returns the selected rows of the data frame.
+   *
+   * @param  {...number} args The indices of the rows to return.
+   * @return {QvdDataFrame} The selected rows of the data frame.
+   */
+  rows(...args) {
+    return new QvdDataFrame(
+      args.map((index) => this._data[index]),
+      this._columns,
+    );
+  }
+
+  /**
+   * Returns the value at the specified row and column.
+   *
+   * @param {number} row The index of the row.
+   * @param {string} column The name of the column.
+   * @return {any} The value at the specified row and column.
+   */
+  at(row, column) {
+    return this._data[row][this._columns.indexOf(column)];
+  }
+
+  /**
+   * Selects the specified columns from the data frame.
+   *
+   * @param  {...string} args The names of the columns to select.
+   * @return {QvdDataFrame} The selected columns of the data frame.
+   */
+  select(...args) {
+    const indices = args.map((arg) => this._columns.indexOf(arg));
+    const data = this._data.map((row) => indices.map((index) => row[index]));
+    const columns = indices.map((index) => this._columns[index]);
+    return new QvdDataFrame(data, columns);
+  }
+
+  /**
+   * Returns the data frame as a dictionary.
+   *
+   * @return {{columns: Array<string>, data: Array<Array<any>>}} The data frame as a dictionary.
+   */
+  toDict() {
+    return {columns: this._columns, data: this._data};
+  }
+
+  /**
+   * Loads a QVD file and returns its data frame.
    *
    * @param {string} path The path to the QVD file.
-   * @param {QvdHeader} header The parsed XML header of the QVD file.
-   * @param {QvdSymbolTable} symbolTable The symbol table of the QVD file.
-   * @param {QvdIndexTable} indexTable The index table of the QVD file.
+   * @return {Promise<QvdDataFrame>} The data frame of the QVD file.
    */
-  constructor(path, header, symbolTable, indexTable) {
-    /**
-     * The path to the QVD file.
-     *
-     * @type {string}
-     * @internal
-     */
-    this._path = path;
-
-    /**
-     * The parsed XML header of the QVD file.
-     *
-     * @type {QvdHeader}
-     * @internal
-     */
-    this._header = header;
-
-    /**
-     * The symbol table of the QVD file.
-     *
-     * @type {QvdSymbolTable}
-     * @internal
-     */
-    this._symbolTable = symbolTable;
-
-    /**
-     * The index table of the QVD file.
-     *
-     * @type {QvdIndexTable}
-     * @internal
-     */
-    this._indexTable = indexTable;
+  static async fromQvd(path) {
+    return await new QvdFileReader(path).load();
   }
 
   /**
-   * Retieves the path to the QVD file.
+   * Constructs a data frame from a dictionary.
    *
-   * @return {string} The path to the QVD file.
+   * @param {{columns: Array<string>, data: Array<Array<any>>}} data The dictionary to construct the data frame from.
+   * @return {Promise<QvdDataFrame>} The constructed data frame.
    */
-  get path() {
-    return this._path;
-  }
-
-  /**
-   * Retrieves the field names of the QVD file.
-   *
-   * @return {Array<string>} The field names.
-   */
-  get fieldNames() {
-    return this._header['QvdTableHeader']['Fields']['QvdFieldHeader'].map((field) => field['FieldName']);
-  }
-
-  /**
-   * Retrieves the total number of rows of the QVD file
-   *
-   * @return {number} The number of rows.
-   */
-  get numberOfRows() {
-    return parseInt(this._header['QvdTableHeader']['NoOfRecords'], 10);
-  }
-
-  /**
-   * Retrieves the values of a specific row of the QVD file. Values are in the same order
-   * as the field names.
-   *
-   * @param {number} index The index of the row.
-   * @return {Array<any>} The values of the row.
-   */
-  getRow(index) {
-    if (index >= this.numberOfRows) {
-      throw new Error('Index is out of bounds');
-    }
-
-    return this._indexTable[index]
-      .map((symbolIndex, fieldIndex) => this._symbolTable[fieldIndex][symbolIndex])
-      .map((symbol) => symbol?.toPrimaryValue());
-  }
-
-  /**
-   * Retrieves the values of all rows of the QVD file as an array of row values. Each row
-   * is an array of values in the same order as the field names.
-   *
-   * @return {{columns: Array<string>, data: Array<Array<any>>}} The columns and the data per row.
-   */
-  getTable() {
-    const data = [];
-
-    for (let index = 0; index < this.numberOfRows; index++) {
-      data.push(this.getRow(index));
-    }
-
-    return {
-      columns: this.fieldNames,
-      data,
-    };
-  }
-
-  /**
-   * Loads a QVD file from the file system.
-   *
-   * @param {string} path The path to the QVD file to load.
-   * @return {Promise<QvdFile>} The loaded QVD file.
-   * @static
-   */
-  static async load(path) {
-    const parser = new QvdFileParser(path);
-    return await parser.load();
+  static async fromDict(data) {
+    return new QvdDataFrame(data.data, data.columns);
   }
 }
 
 /**
  * QVD file parser that loads and parses a QVD file.
  */
-export class QvdFileParser {
+export class QvdFileReader {
   /**
    * Constructs a new QVD file parser.
    *
@@ -463,7 +598,7 @@ export class QvdFileParser {
   /**
    * Loads the QVD file into memory and parses it.
    *
-   * @return {Promise<QvdFile>} The loaded QVD file.
+   * @return {Promise<QvdDataFrame>} The loaded QVD file.
    */
   async load() {
     await this._readData();
@@ -471,11 +606,32 @@ export class QvdFileParser {
     await this._parseSymbolTable();
     await this._parseIndexTable();
 
-    return new QvdFile(
-      this._path,
-      /** @type {QvdHeader} */ (this._header),
-      /** @type {QvdSymbolTable} */ (this._symbolTable),
-      /** @type {QvdIndexTable} */ (this._indexTable),
-    );
+    /**
+     * Retrieves the values of a specific row of the QVD file. Values are in the same order
+     * as the field names.
+     *
+     * @param {number} index The index of the row.
+     * @return {Array<any>} The values of the row.
+     */
+    const getRow = (index) => {
+      assert(this._indexTable, 'The QVD file index table has not been parsed.');
+
+      if (index >= this._indexTable.length) {
+        throw new Error('Index is out of bounds');
+      }
+
+      return this._indexTable[index]
+        .map((symbolIndex, fieldIndex) => this._symbolTable?.[fieldIndex][symbolIndex])
+        .map((symbol) => symbol?.toPrimaryValue());
+    };
+
+    assert(this._header, 'The QVD file header has not been parsed.');
+    assert(this._symbolTable, 'The QVD file symbol table has not been parsed.');
+    assert(this._indexTable, 'The QVD file index table has not been parsed.');
+
+    const columns = this._header['QvdTableHeader']['Fields']['QvdFieldHeader'].map((field) => field['FieldName']);
+    const data = this._indexTable.map((_, index) => getRow(index));
+
+    return new QvdDataFrame(data, columns);
   }
 }

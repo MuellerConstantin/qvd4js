@@ -15,10 +15,15 @@ structure. The library is written to be used in a Node.js environment exclusivel
   - [Symbol Table](#symbol-table)
   - [Index Table](#index-table)
 - [API Documentation](#api-documentation)
-  - [QvdFile](#qvdfile)
-    - [`static load(path: string): Promise<QvdFile>`](#static-loadpath-string-promiseqvdfile)
-    - [`getRow(index: number): Array<any>`](#getrowindex-number-arrayany)
-    - [`getTable(): {columns: Array<string>, data: Array<Array<any>>}`](#gettable-columns-arraystring-data-arrayarrayany)
+  - [QvdDataFrame](#qvddataframe)
+    - [static fromQvd(path: string): Promise<QvdDataFrame>](#static-fromqvdpath-string-promiseqvddataframe)
+    - [static fromDict(dict: object): Promise<QvdDataFrame>](#static-fromdictdict-object-promiseqvddataframe)
+    - [head(n: number): QvdDataFrame](#headn-number-qvddataframe)
+    - [tail(n: number): QvdDataFrame](#tailn-number-qvddataframe)
+    - [rows(...args: number): QvdDataFrame](#rowsargs-number-qvddataframe)
+    - [at(row: number, column: string): any](#atrow-number-column-string-any)
+    - [select(...args: string): QvdDataFrame](#selectargs-string-qvddataframe)
+    - [toDict(): object](#todict-object)
 - [License](#license)
   - [Forbidden](#forbidden)
 
@@ -40,15 +45,14 @@ npm install qvd4js --save
 Below is a quick example how to use _qvd4js_.
 
 ```javascript
-import {QvdFile} from 'qvd4js';
+import {QvdDataFrame} from 'qvd4js';
 
-const qvdFile = await QvdFile.load('path/to/file.qvd');
-const dataTable = qvdFile.getTable();
+const df = await QvdDataFrame.fromQvd('path/to/file.qvd');
+console.log(df.head(5));
 ```
 
-The above example loads the _qvd4js_ module and parses an example QVD file. A QVD file is typically loaded using the static
-`QvdFile.load` function of the `QvdFile` class itself. After loading the file's content, numerous methods and properties
-are available to work with the parsed data.
+The above example loads the _qvd4js_ library and parses an example QVD file. A QVD file is typically loaded using the static
+`QvdDataFrame.fromQvd` function of the `QvdDataFrame` class itself. After loading the file's content, numerous methods and properties are available to work with the parsed data.
 
 ## QVD File Format
 
@@ -90,33 +94,55 @@ data record, but only the indices that point to the values in the symbol table.
 
 ## API Documentation
 
-### QvdFile
+### QvdDataFrame
 
-The `QvdFile` class represents a finally parsed QVD file. It provides a high-level abstraction access to the QVD file content.
-This includes meta information as well as access to the actual data records.
+The `QvdDataFrame` class represents the data frame stored inside of a finally parsed QVD file. It provides a high-level
+abstraction access to the QVD file content. This includes meta information as well as access to the actual data records.
 
-| Property       | Type     | Description                                                         |
-| -------------- | -------- | ------------------------------------------------------------------- |
-| `path`         | `string` | The path to the QVD file that was parsed.                           |
-| `numberOfRows` | `number` | The number of data records/rows that are contained in the QVD file. |
-| `fieldNames`   | `string` | The names of the fields that are contained in the QVD file.         |
+| Property  | Type       | Description                                                                                                        |
+| --------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
+| `shape`   | `number[]` | The shape of the data table. The first element is the number of rows, the second element is the number of columns. |
+| `data`    | `any[][]`  | The actual data records of the QVD file. The first dimension represents the single rows.                           |
+| `columns` | `string[]` | The names of the fields that are contained in the QVD file.                                                        |
 
-#### `static load(path: string): Promise<QvdFile>`
+#### `static fromQvd(path: string): Promise<QvdDataFrame>`
 
-The static method `QvdFile.load` loads a QVD file from the given path and parses it. The method returns a promise that resolves
-to a `QvdFile` instance.
+The static method `QvdDataFrame.fromQvd` loads a QVD file from the given path and parses it. The method returns a promise that resolves
+to a `QvdDataFrame` instance.
 
-#### `getRow(index: number): Array<any>`
+#### `static fromDict(dict: object): Promise<QvdDataFrame>`
 
-The method `getRow` returns the data record at the given index. The method returns an array
-of the row's values. The order of the values in the array corresponds to the order of the fields in the QVD file.
+The static method `QvdDataFrame.fromDict` constructs a data frame from a dictionary. The dictionary must contain the columns and
+the actual data as properties. The columns property is an array of strings that contains the names of the fields in the QVD file.
+The data property is an array of arrays that contains the actual data records. The order of the values in the inner arrays
+corresponds to the order of the fields in the QVD file.
 
-#### `getTable(): {columns: Array<string>, data: Array<Array<any>>}`
+#### `head(n: number): QvdDataFrame`
 
-The method `getTable` returns the entire data table of the QVD file. The method returns an object with the columns and the
-actual data as properties. The columns property is an array of strings that contains the names of the fields in the QVD file,
-similar to the `fieldNames` property. The data property is an array of arrays that contains the actual data records. The order
-of the values in the inner arrays corresponds to the order of the fields in the QVD file.
+The method `head` returns the first `n` rows of the data frame.
+
+#### `tail(n: number): QvdDataFrame`
+
+The method `tail` returns the last `n` rows of the data frame.
+
+#### `rows(...args: number): QvdDataFrame`
+
+The method `rows` returns a new data frame that contains only the specified rows.
+
+#### `at(row: number, column: string): any`
+
+The method `at` returns the value at the specified row and column.
+
+#### `select(...args: string): QvdDataFrame`
+
+The method `select` returns a new data frame that contains only the specified columns.
+
+#### `toDict(): object`
+
+The method `toDict` returns the data frame as a dictionary. The dictionary contains the columns and the
+actual data as properties. The columns property is an array of strings that contains the names of the
+fields in the QVD file. The data property is an array of arrays that contains the actual data records.
+The order of the values in the inner arrays corresponds to the order of the fields in the QVD file.
 
 ## License
 
