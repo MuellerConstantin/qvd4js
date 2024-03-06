@@ -1,10 +1,10 @@
 # qvd4js
 
-> Utility library for reading Qlik View Data (QVD) files in JavaScript.
+> Utility library for reading/writing Qlik View Data (QVD) files in JavaScript.
 
-The _qvd4js_ library provides a simple API for reading Qlik View Data (QVD) files in JavaScript. Using
+The _qvd4js_ library provides a simple API for reading/writing Qlik View Data (QVD) files in JavaScript. Using
 this library, it is possible to parse the binary QVD file format and convert it to a JavaScript object
-structure. The library is written to be used in a Node.js environment exclusively.
+structure and vica versa. The library is written to be used in a Node.js environment exclusively.
 
 ---
 
@@ -23,7 +23,8 @@ structure. The library is written to be used in a Node.js environment exclusivel
     - [`rows(...args: number): QvdDataFrame`](#rowsargs-number-qvddataframe)
     - [`at(row: number, column: string): any`](#atrow-number-column-string-any)
     - [`select(...args: string): QvdDataFrame`](#selectargs-string-qvddataframe)
-    - [`toDict(): object`](#todict-object)
+    - [`toDict(): Promise<object>`](#todict-promiseobject)
+    - [`toQvd(path: string): Promise<void>`](#toqvdpath-string-promisevoid)
 - [License](#license)
   - [Forbidden](#forbidden)
 
@@ -137,12 +138,16 @@ The method `at` returns the value at the specified row and column.
 
 The method `select` returns a new data frame that contains only the specified columns.
 
-#### `toDict(): object`
+#### `toDict(): Promise<object>`
 
 The method `toDict` returns the data frame as a dictionary. The dictionary contains the columns and the
 actual data as properties. The columns property is an array of strings that contains the names of the
 fields in the QVD file. The data property is an array of arrays that contains the actual data records.
 The order of the values in the inner arrays corresponds to the order of the fields in the QVD file.
+
+#### `toQvd(path: string): Promise<void>`
+
+The method `toQvd` writes the data frame to a QVD file at the specified path.
 
 ## License
 

@@ -1,35 +1,10 @@
 // @ts-check
 
 import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 import xml from 'xml2js';
 import assert from 'assert';
-
-/**
- * @typedef {{[name: string]: any}} QvdHeader
- *
- * The header contains the meta data of the QVD file. It is a plain JavaScript object
- * that is parsed from the XML header of the QVD file. It is important to note that the
- * object is a plain JavaScript object and not an instance of representative class. For
- * more information see the documentation of the parser implementation in
- * {@link QvdFileParser._parseHeader|QvdFileParser}.
- */
-
-/**
- * @typedef {Array<Array<any>>} QvdSymbolTable
- *
- * The symbol table contains the values of the QVD file. It is a two-dimensional array
- * of QVD values. The first dimension represents the fields/columns of the QVD file, the
- * second dimension represents the possible values of the respective field/column.
- */
-
-/**
- * @typedef {Array<Array<number>>} QvdIndexTable
- *
- * The index table contains the indices referencing the symbol table for reach row. It is
- * a two-dimensional array of numbers. The first dimension represents the rows of the QVD
- * file, the second dimension represents the fields/columns containing the indices of the
- * respective column value in the symbol table.
- */
 
 /**
  * Represents a Qlik symbol/value, stored in a QVD file.
@@ -96,6 +71,51 @@ export class QvdSymbol {
   }
 
   /**
+   * Converts the symbol to its byte representation.
+   *
+   * @return {Buffer} The byte representation of the symbol.
+   */
+  toByteRepresentation() {
+    if (this._intValue && this._stringValue) {
+      const intBuffer = Buffer.alloc(4);
+      intBuffer.writeInt32LE(this._intValue);
+
+      const stringBuffer = Buffer.alloc(this._stringValue.length + 1);
+      stringBuffer.write(this._stringValue, 'utf-8');
+      stringBuffer.writeUInt8(0, this._stringValue.length);
+
+      return Buffer.concat([Buffer.from([5]), intBuffer, stringBuffer]);
+    } else if (this._doubleValue && this._stringValue) {
+      const floatBuffer = Buffer.alloc(8);
+      floatBuffer.writeDoubleLE(this._doubleValue);
+
+      const stringBuffer = Buffer.alloc(this._stringValue.length + 1);
+      stringBuffer.write(this._stringValue, 'utf-8');
+      stringBuffer.writeUInt8(0, this._stringValue.length);
+
+      return Buffer.concat([Buffer.from([6]), floatBuffer, stringBuffer]);
+    } else if (this._intValue) {
+      const buffer = Buffer.alloc(4);
+      buffer.writeInt32LE(this._intValue);
+
+      return Buffer.concat([Buffer.from([1]), buffer]);
+    } else if (this._doubleValue) {
+      const buffer = Buffer.alloc(8);
+      buffer.writeDoubleLE(this._doubleValue);
+
+      return Buffer.concat([Buffer.from([2]), buffer]);
+    } else if (this._stringValue) {
+      const buffer = Buffer.alloc(this._stringValue.length + 1);
+      buffer.write(this._stringValue, 'utf-8');
+      buffer.writeUInt8(0, this._stringValue.length);
+
+      return Buffer.concat([Buffer.from([4]), buffer]);
+    } else {
+      throw new Error('The symbol does not contain any value.');
+    }
+  }
+
+  /**
    * Checks if this symbol is equal to another symbol.
    *
    * @param {*} value The object to compare with.
@@ -129,7 +149,7 @@ export class QvdSymbol {
    * @param {number} doubleValue The double value.
    * @return {QvdSymbol} The constructed value symbol.
    */
-  static fromDoublValue(doubleValue) {
+  static fromDoubleValue(doubleValue) {
     return new QvdSymbol(null, doubleValue, null);
   }
 
@@ -261,10 +281,19 @@ export class QvdDataFrame {
   /**
    * Returns the data frame as a dictionary.
    *
-   * @return {{columns: Array<string>, data: Array<Array<any>>}} The data frame as a dictionary.
+   * @return {Promise<{columns: Array<string>, data: Array<Array<any>>}>} The data frame as a dictionary.
    */
-  toDict() {
+  async toDict() {
     return {columns: this._columns, data: this._data};
+  }
+
+  /**
+   * Persists the data frame to a QVD file.
+   *
+   * @param {string} path The path to the QVD file.
+   */
+  async toQvd(path) {
+    new QvdFileWriter(path, this).save();
   }
 
   /**
@@ -289,7 +318,7 @@ export class QvdDataFrame {
 }
 
 /**
- * QVD file parser that loads and parses a QVD file.
+ * Parses a QVD file and loads it into memory.
  */
 export class QvdFileReader {
   /**
@@ -303,29 +332,8 @@ export class QvdFileReader {
     this._headerOffset = null;
     this._symbolTableOffset = null;
     this._indexTableOffset = null;
-
-    /**
-     * The parsed XML header of the QVD file.
-     *
-     * @type {QvdHeader|null}
-     * @internal
-     */
     this._header = null;
-
-    /**
-     * The parsed symbol table of the QVD file.
-     *
-     * @type {QvdSymbolTable|null}
-     * @internal
-     */
     this._symbolTable = null;
-
-    /**
-     * The parsed index table of the QVD file.
-     *
-     * @type {QvdIndexTable|null}
-     * @internal
-     */
     this._indexTable = null;
   }
 
@@ -463,7 +471,7 @@ export class QvdFileReader {
             const value = Buffer.from(byteData).readDoubleLE(0);
 
             pointer += 7;
-            symbols.push(QvdSymbol.fromDoublValue(value));
+            symbols.push(QvdSymbol.fromDoubleValue(value));
 
             break;
           }
@@ -606,6 +614,10 @@ export class QvdFileReader {
     await this._parseSymbolTable();
     await this._parseIndexTable();
 
+    assert(this._header, 'The QVD file header has not been parsed.');
+    assert(this._symbolTable, 'The QVD file symbol table has not been parsed.');
+    assert(this._indexTable, 'The QVD file index table has not been parsed.');
+
     /**
      * Retrieves the values of a specific row of the QVD file. Values are in the same order
      * as the field names.
@@ -614,24 +626,286 @@ export class QvdFileReader {
      * @return {Array<any>} The values of the row.
      */
     const getRow = (index) => {
-      assert(this._indexTable, 'The QVD file index table has not been parsed.');
-
-      if (index >= this._indexTable.length) {
+      if (!this._indexTable || index >= this._indexTable.length) {
         throw new Error('Index is out of bounds');
       }
 
-      return this._indexTable[index]
+      return this._indexTable?.[index]
         .map((symbolIndex, fieldIndex) => this._symbolTable?.[fieldIndex][symbolIndex])
-        .map((symbol) => symbol?.toPrimaryValue());
-    };
+        .map((symbol) => {
+          const value = symbol?.toPrimaryValue();
 
-    assert(this._header, 'The QVD file header has not been parsed.');
-    assert(this._symbolTable, 'The QVD file symbol table has not been parsed.');
-    assert(this._indexTable, 'The QVD file index table has not been parsed.');
+          if (typeof value === 'string') {
+            try {
+              return parseInt(value, 10);
+            } catch (e) {
+              try {
+                return parseFloat(value);
+              } catch (e) {
+                return value;
+              }
+            }
+          }
+
+          return value;
+        });
+    };
 
     const columns = this._header['QvdTableHeader']['Fields']['QvdFieldHeader'].map((field) => field['FieldName']);
     const data = this._indexTable.map((_, index) => getRow(index));
 
     return new QvdDataFrame(data, columns);
+  }
+}
+
+/**
+ * Persists a QVD file to disk.
+ */
+export class QvdFileWriter {
+  /**
+   * Constructs a new QVD file writer.
+   *
+   * @param {string} path The path to the QVD file to write.
+   * @param {QvdDataFrame} df The data frame to write to the QVD file.
+   */
+  constructor(path, df) {
+    this._path = path;
+    this._df = df;
+    this._header = null;
+    this._symbolBuffer = null;
+    this._symbolTable = null;
+    this._symbolTableMetadata = null;
+    this._indexBuffer = null;
+    this._indexTable = null;
+    this._indexTableMetadata = null;
+    this._recordByteSize = null;
+  }
+
+  /**
+   * Writes the data to the QVD file.
+   */
+  _writeData() {
+    assert(this._header, 'The QVD file header has not been parsed.');
+    assert(this._symbolBuffer, 'The QVD file symbol table has not been parsed.');
+    assert(this._indexBuffer, 'The QVD file index table has not been parsed.');
+
+    const headerBuffer = Buffer.concat([Buffer.from(this._header, 'utf-8'), Buffer.from([0])]);
+
+    const fd = fs.openSync(this._path, 'w');
+    fs.writeSync(fd, headerBuffer, 0, headerBuffer.length, 0);
+    fs.writeSync(fd, this._symbolBuffer, 0, this._symbolBuffer.length, headerBuffer.length);
+    fs.writeSync(fd, this._indexBuffer, 0, this._indexBuffer.length, headerBuffer.length + this._symbolBuffer.length);
+    fs.closeSync(fd);
+  }
+
+  /**
+   * Builds the XML header of the QVD file.
+   */
+  _buildHeader() {
+    const creationDate = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
+
+    const xmlObject = {
+      QvdTableHeader: {
+        QvBuildNo: 50667,
+        CreatorDoc: crypto.randomUUID(),
+        CreateUtcTime: creationDate,
+        SourceCreateUtcTime: '',
+        SourceFileUtcTime: '',
+        SourceFileSize: -1,
+        StaleUtcTime: '',
+        TableName: path.basename(this._path, path.extname(this._path)),
+        Fields: {
+          QvdFieldHeader: this._df.columns.map((column, index) => {
+            return {
+              FieldName: column,
+              BitOffset: this._indexTableMetadata?.[index][0],
+              BitWidth: this._indexTableMetadata?.[index][1],
+              Bias: this._indexTableMetadata?.[index][2],
+              NoOfSymbols: this._symbolTable?.[index].length,
+              Offset: this._symbolTableMetadata?.[index][0],
+              Length: this._symbolTableMetadata?.[index][1],
+              Comment: '',
+              NumberFormat: {
+                Type: 'UNKNOWN',
+                nDec: '0',
+                UseThou: '0',
+                Fmt: '',
+                Dec: '',
+                Thou: '',
+              },
+              Tags: {},
+            };
+          }),
+        },
+        NoOfRecords: this._indexTable?.length,
+        RecordByteSize: this._recordByteSize,
+        Offset:
+          this._symbolTableMetadata?.[this._symbolTableMetadata.length - 1][0] +
+          this._symbolTableMetadata?.[this._symbolTableMetadata.length - 1][1],
+        Length: this._indexBuffer?.length,
+        Compression: '',
+        Comment: '',
+        EncryptionInfo: '',
+        TableTags: '',
+        ProfilingData: '',
+        Lineage: {
+          LineageInfo: {
+            Discriminator: 'INLINE;',
+            Statement: '',
+          },
+        },
+      },
+    };
+
+    const builder = new xml.Builder({
+      renderOpts: {
+        pretty: true,
+        newline: '\r\n',
+        indent: '  ',
+      },
+    });
+    this._header = builder.buildObject(xmlObject) + '\r\n';
+  }
+
+  /**
+   * Builds the symbol table of the QVD file.
+   */
+  _buildSymbolTable() {
+    this._symbolTable = [];
+    this._symbolTableMetadata = [];
+    this._symbolBuffer = Buffer.alloc(0);
+
+    this._df.columns.forEach((column) => {
+      const uniqueValues = Array.from(new Set(this._df.data.map((row) => row[this._df.columns.indexOf(column)])));
+      const symbols = uniqueValues.map((value) => QvdFileWriter._convertRawToSymbol(value));
+
+      const currentSymbolBuffer = Buffer.concat(symbols.map((symbol) => symbol.toByteRepresentation()));
+      this._symbolBuffer = this._symbolBuffer
+        ? Buffer.concat([this._symbolBuffer, currentSymbolBuffer])
+        : currentSymbolBuffer;
+
+      const symbolsLength = currentSymbolBuffer.length;
+      const symbolsOffset = this._symbolBuffer.length - symbolsLength;
+
+      this._symbolTableMetadata?.push([symbolsOffset, symbolsLength]);
+      this._symbolTable?.push(symbols);
+    });
+  }
+
+  /**
+   * Builds the index table of the QVD file.
+   */
+  _buildIndexTable() {
+    this._indexTable = [];
+    this._indexTableMetadata = [];
+    this._indexBuffer = Buffer.alloc(0);
+
+    this._df.data.forEach((row) => {
+      // Convert the raw values to indices referring to the symbol table
+      let indices = this._df.columns.map((column) => {
+        const value = row[this._df.columns.indexOf(column)];
+        const symbol = QvdFileWriter._convertRawToSymbol(value);
+        const symbolIndex = this._symbolTable?.[this._df.columns.indexOf(column)].findIndex((s) => s.equals(symbol));
+        return symbolIndex;
+      });
+
+      // Convert the integer indices to binary representation
+      indices = indices.map((index) => {
+        const bits = QvdFileWriter._convertInt32ToBits(index, 32);
+        let bitString = bits.join('');
+        bitString = bitString.replace(/^0+/, '') || '0';
+        return bitString;
+      });
+
+      this._indexTable?.push(indices);
+    });
+
+    // Normalize the bit representation of the indices by padding with zeros
+    this._df.columns.forEach((column) => {
+      // Bit offset is the sum of the bit widths of all previous columns
+      const bitOffset = this._indexTableMetadata
+        ?.slice(0, this._df.columns.indexOf(column))
+        .reduce((sum, metadata) => sum + metadata[1], 0);
+
+      assert(this._indexTable, 'The QVD file header has not been parsed.');
+
+      // Bit width is the maximum bit width of all indices of the column
+      const bitWidth = Math.max(
+        ...this._indexTable.map((/** @type{string[]} */ indices) => indices[this._df.columns.indexOf(column)].length),
+      );
+
+      const bias = 0;
+
+      this._indexTableMetadata?.push([bitOffset, bitWidth, bias]);
+
+      // Pad the bit representation of the indices with zeros to match the bit width
+      this._indexTable.forEach((/** @type{string[]} */ indices) => {
+        const bitString = indices[this._df.columns.indexOf(column)];
+        const paddedBitString = bitString.padStart(bitWidth, '0');
+        indices[this._df.columns.indexOf(column)] = paddedBitString;
+      });
+    });
+
+    // Concatenate the bit representation of the indices of each row to a single binary string per row
+    this._indexBuffer = Buffer.concat(
+      this._indexTable.map((/** @type{string[]} */ indices) => {
+        const bits = indices.join('');
+        const paddedBits = bits.padStart(Math.ceil(bits.length / 8) * 8, '0');
+        const bytes = paddedBits.match(/.{1,8}/g)?.map((byte) => parseInt(byte, 2));
+
+        assert(bytes, 'Byte conversion of bit indices failed.');
+
+        return Buffer.from(Uint8Array.from(bytes));
+      }),
+    );
+
+    this._recordByteSize = this._indexBuffer.length / this._indexTable.length;
+  }
+
+  /**
+   * Converts a raw value/literal to a QVD symbol.
+   *
+   * @param {any} raw The raw value/literal to convert.
+   * @return {QvdSymbol} The converted QVD symbol.
+   */
+  static _convertRawToSymbol(raw) {
+    const isInteger = typeof raw === 'number' && Number.isInteger(raw);
+    const isFloat = typeof raw === 'number' && !Number.isInteger(raw);
+
+    if (isInteger) {
+      return QvdSymbol.fromDualIntValue(raw, raw.toString());
+    } else if (isFloat) {
+      return QvdSymbol.fromDualDoubleValue(raw, raw.toString());
+    } else {
+      return QvdSymbol.fromStringValue(raw);
+    }
+  }
+
+  /**
+   * Converts an integer to a list of bits.
+   *
+   * @param {number} value The integer value to convert.
+   * @param {number} width The width of the bit list.
+   * @return {Array<number>} The list of bits.
+   */
+  static _convertInt32ToBits(value, width) {
+    return value
+      .toString(2)
+      .split('')
+      .map((bit) => parseInt(bit))
+      .reverse()
+      .concat(new Array(width).fill(0))
+      .slice(0, width)
+      .reverse();
+  }
+
+  /**
+   * Persists the data frame to a QVD file.
+   */
+  save() {
+    this._buildSymbolTable();
+    this._buildIndexTable();
+    this._buildHeader();
+    this._writeData();
   }
 }
