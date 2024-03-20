@@ -313,6 +313,9 @@ export class QvdDataFrame {
    * @return {Promise<QvdDataFrame>} The constructed data frame.
    */
   static async fromDict(data) {
+    assert(data.columns, 'The dictionary to construct the data frame from does not contain any columns.');
+    assert(data.data, 'The dictionary to construct the data frame from does not contain any data.');
+
     return new QvdDataFrame(data.data, data.columns);
   }
 }
@@ -636,14 +639,8 @@ export class QvdFileReader {
           const value = symbol?.toPrimaryValue();
 
           if (typeof value === 'string') {
-            try {
-              return parseInt(value, 10);
-            } catch (e) {
-              try {
-                return parseFloat(value);
-              } catch (e) {
-                return value;
-              }
+            if (!isNaN(Number(value))) {
+              return Number(value);
             }
           }
 
