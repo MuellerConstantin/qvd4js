@@ -846,9 +846,12 @@ export class QvdFileWriter {
     // Concatenate the bit representation of the indices of each row to a single binary string per row
     this._indexBuffer = Buffer.concat(
       this._indexTable.map((/** @type{string[]} */ indices) => {
+        indices.reverse()
         const bits = indices.join('');
-        const paddedBits = bits.padStart(Math.ceil(bits.length / 8) * 8, '0');
+        const paddingWidth = (8 - bits.length % 8) % 8;
+        const paddedBits = bits.padStart(bits.length + paddingWidth, '0');
         const bytes = paddedBits.match(/.{1,8}/g)?.map((byte) => parseInt(byte, 2));
+        bytes?.reverse()
 
         assert(bytes, 'Byte conversion of bit indices failed.');
 
