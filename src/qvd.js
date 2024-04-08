@@ -435,8 +435,12 @@ export class QvdFileReader {
       throw new Error('The QVD file has not been loaded in the proper order or has not been loaded at all.');
     }
 
-    const fields = this._header['QvdTableHeader']['Fields']['QvdFieldHeader'];
+    let fields = this._header['QvdTableHeader']['Fields']['QvdFieldHeader'];
     const symbolBuffer = this._buffer.subarray(this._symbolTableOffset, this._indexTableOffset);
+
+    if (!Array.isArray(fields)) {
+      fields = [fields];
+    }
 
     /*
      * The symbol table is a contiguous byte array that contains all possible symbols/values of all fields/columns.
@@ -558,7 +562,11 @@ export class QvdFileReader {
       throw new Error('The QVD file has not been loaded in the proper order or has not been loaded at all.');
     }
 
-    const fields = this._header['QvdTableHeader']['Fields']['QvdFieldHeader'];
+    let fields = this._header['QvdTableHeader']['Fields']['QvdFieldHeader'];
+
+    if (!Array.isArray(fields)) {
+      fields = [fields];
+    }
 
     // Size of a single row of the index table in bytes
     const recordSize = parseInt(this._header['QvdTableHeader']['RecordByteSize'], 10);
@@ -648,7 +656,13 @@ export class QvdFileReader {
         });
     };
 
-    const columns = this._header['QvdTableHeader']['Fields']['QvdFieldHeader'].map((field) => field['FieldName']);
+    let fields = this._header['QvdTableHeader']['Fields']['QvdFieldHeader'];
+
+    if (!Array.isArray(fields)) {
+      fields = [fields];
+    }
+
+    const columns = fields.map((field) => field['FieldName']);
     const data = this._indexTable.map((_, index) => getRow(index));
 
     return new QvdDataFrame(data, columns);
