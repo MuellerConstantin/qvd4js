@@ -80,18 +80,14 @@ export class QvdSymbol {
       const intBuffer = Buffer.alloc(4);
       intBuffer.writeInt32LE(this._intValue);
 
-      const stringBuffer = Buffer.alloc(this._stringValue.length + 1);
-      stringBuffer.write(this._stringValue, 'utf-8');
-      stringBuffer.writeUInt8(0, this._stringValue.length);
+      const stringBuffer = Buffer.concat([Buffer.from(this._stringValue, 'utf-8'), Buffer.from([0])]);
 
       return Buffer.concat([Buffer.from([5]), intBuffer, stringBuffer]);
     } else if (this._doubleValue && this._stringValue) {
       const floatBuffer = Buffer.alloc(8);
       floatBuffer.writeDoubleLE(this._doubleValue);
 
-      const stringBuffer = Buffer.alloc(this._stringValue.length + 1);
-      stringBuffer.write(this._stringValue, 'utf-8');
-      stringBuffer.writeUInt8(0, this._stringValue.length);
+      const stringBuffer = Buffer.concat([Buffer.from(this._stringValue, 'utf-8'), Buffer.from([0])]);
 
       return Buffer.concat([Buffer.from([6]), floatBuffer, stringBuffer]);
     } else if (this._intValue) {
@@ -105,9 +101,7 @@ export class QvdSymbol {
 
       return Buffer.concat([Buffer.from([2]), buffer]);
     } else if (this._stringValue) {
-      const buffer = Buffer.alloc(this._stringValue.length + 1);
-      buffer.write(this._stringValue, 'utf-8');
-      buffer.writeUInt8(0, this._stringValue.length);
+      const buffer = Buffer.concat([Buffer.from(this._stringValue, 'utf-8'), Buffer.from([0])]);
 
       return Buffer.concat([Buffer.from([4]), buffer]);
     } else {
@@ -484,29 +478,31 @@ export class QvdFileReader {
           }
           case 4: {
             // String value (0 terminated)
-            let value = '';
+            const byteData = [];
 
             while (symbolBuffer[pointer] !== 0) {
-              value += String.fromCharCode(symbolBuffer[pointer++]);
+              byteData.push(symbolBuffer[pointer++]);
             }
 
+            const value = Buffer.from(byteData).toString('utf-8');
             symbols.push(QvdSymbol.fromStringValue(value));
 
             break;
           }
           case 5: {
             // Dual (Integer format) value (4 bytes), followed by string format
-            const byteData = new Int32Array(symbolBuffer.subarray(pointer, pointer + 4));
-            const intValue = Buffer.from(byteData).readIntLE(0, byteData.length);
+            const intByteData = new Int32Array(symbolBuffer.subarray(pointer, pointer + 4));
+            const intValue = Buffer.from(intByteData).readIntLE(0, intByteData.length);
 
             pointer += 4;
 
-            let stringValue = '';
+            let stringByteData = [];
 
             while (symbolBuffer[pointer] !== 0) {
-              stringValue += String.fromCharCode(symbolBuffer[pointer++]);
+              stringByteData.push(symbolBuffer[pointer++]);
             }
 
+            const stringValue = Buffer.from(stringByteData).toString('utf-8');
             symbols.push(QvdSymbol.fromDualIntValue(intValue, stringValue));
 
             break;
@@ -514,17 +510,18 @@ export class QvdFileReader {
 
           case 6: {
             // Dual (Double format) value (8 bytes), followed by string format
-            const byteData = new Int32Array(symbolBuffer.subarray(pointer, pointer + 8));
-            const doubleValue = Buffer.from(byteData).readDoubleLE(0);
+            const doubleByteData = new Int32Array(symbolBuffer.subarray(pointer, pointer + 8));
+            const doubleValue = Buffer.from(doubleByteData).readDoubleLE(0);
 
             pointer += 8;
 
-            let stringValue = '';
+            let stringByteData = [];
 
             while (symbolBuffer[pointer] !== 0) {
-              stringValue += String.fromCharCode(symbolBuffer[pointer++]);
+              stringByteData.push(symbolBuffer[pointer++]);
             }
 
+            const stringValue = Buffer.from(stringByteData).toString('utf-8');
             symbols.push(QvdSymbol.fromDualDoubleValue(doubleValue, stringValue));
 
             break;
@@ -860,12 +857,12 @@ export class QvdFileWriter {
     // Concatenate the bit representation of the indices of each row to a single binary string per row
     this._indexBuffer = Buffer.concat(
       this._indexTable.map((/** @type{string[]} */ indices) => {
-        indices.reverse()
+        indices.reverse();
         const bits = indices.join('');
-        const paddingWidth = (8 - bits.length % 8) % 8;
+        const paddingWidth = (8 - (bits.length % 8)) % 8;
         const paddedBits = bits.padStart(bits.length + paddingWidth, '0');
         const bytes = paddedBits.match(/.{1,8}/g)?.map((byte) => parseInt(byte, 2));
-        bytes?.reverse()
+        bytes?.reverse();
 
         assert(bytes, 'Byte conversion of bit indices failed.');
 
