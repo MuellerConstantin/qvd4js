@@ -638,19 +638,22 @@ export class QvdFileReader {
         throw new Error('Index is out of bounds');
       }
 
-      return this._indexTable?.[index]
-        .map((symbolIndex, fieldIndex) => this._symbolTable?.[fieldIndex][symbolIndex])
-        .map((symbol) => {
-          const value = symbol?.toPrimaryValue();
+      return this._indexTable?.[index].map((symbolIndex, fieldIndex) => {
+        if (symbolIndex < 0) {
+          return null;
+        }
 
-          if (typeof value === 'string') {
-            if (!isNaN(Number(value))) {
-              return Number(value);
-            }
+        const symbol = this._symbolTable[fieldIndex][symbolIndex];
+        const value = symbol.toPrimaryValue();
+
+        if (typeof value === 'string') {
+          if (!isNaN(Number(value))) {
+            return Number(value);
           }
+        }
 
-          return value;
-        });
+        return value;
+      });
     };
 
     let fields = this._header['QvdTableHeader']['Fields']['QvdFieldHeader'];
@@ -785,8 +788,12 @@ export class QvdFileWriter {
 
     this._df.columns.forEach((column) => {
       const uniqueValues = Array.from(new Set(this._df.data.map((row) => row[this._df.columns.indexOf(column)])));
-      const symbols = uniqueValues.map((value) => QvdFileWriter._convertRawToSymbol(value));
+      const containsNull = uniqueValues.includes(null) || uniqueValues.includes(undefined);
+      const symbols = uniqueValues
+        .filter((value) => value !== null && value !== undefined)
+        .map((value) => QvdFileWriter._convertRawToSymbol(value));
 
+      // @ts-ignore:next-line sd
       const currentSymbolBuffer = Buffer.concat(symbols.map((symbol) => symbol.toByteRepresentation()));
       this._symbolBuffer = this._symbolBuffer
         ? Buffer.concat([this._symbolBuffer, currentSymbolBuffer])
@@ -795,7 +802,7 @@ export class QvdFileWriter {
       const symbolsLength = currentSymbolBuffer.length;
       const symbolsOffset = this._symbolBuffer.length - symbolsLength;
 
-      this._symbolTableMetadata?.push([symbolsOffset, symbolsLength]);
+      this._symbolTableMetadata?.push([symbolsOffset, symbolsLength, containsNull]);
       this._symbolTable?.push(symbols);
     });
   }
@@ -813,8 +820,16 @@ export class QvdFileWriter {
       let indices = this._df.columns.map((column) => {
         const value = row[this._df.columns.indexOf(column)];
         const symbol = QvdFileWriter._convertRawToSymbol(value);
-        const symbolIndex = this._symbolTable?.[this._df.columns.indexOf(column)].findIndex((s) => s.equals(symbol));
-        return symbolIndex;
+        const fieldContainsNull = this._symbolTableMetadata?.[this._df.columns.indexOf(column)][2];
+
+        // None values are represented by bias shifted negative indices
+        if (symbol === null) {
+          return 0;
+        } else {
+          const symbolIndex = this._symbolTable?.[this._df.columns.indexOf(column)].findIndex((s) => s.equals(symbol));
+          // In order to represent None values, the indices are shifted by the bias value of the column
+          return fieldContainsNull ? symbolIndex + 2 : symbolIndex;
+        }
       });
 
       // Convert the integer indices to binary representation
@@ -842,7 +857,8 @@ export class QvdFileWriter {
         ...this._indexTable.map((/** @type{string[]} */ indices) => indices[this._df.columns.indexOf(column)].length),
       );
 
-      const bias = 0;
+      const fieldContainsNull = this._symbolTableMetadata?.[this._df.columns.indexOf(column)][2];
+      const bias = fieldContainsNull ? -2 : 0;
 
       this._indexTableMetadata?.push([bitOffset, bitWidth, bias]);
 
@@ -877,9 +893,13 @@ export class QvdFileWriter {
    * Converts a raw value/literal to a QVD symbol.
    *
    * @param {any} raw The raw value/literal to convert.
-   * @return {QvdSymbol} The converted QVD symbol.
+   * @return {QvdSymbol|null} The converted QVD symbol.
    */
   static _convertRawToSymbol(raw) {
+    if (raw === null || raw === undefined) {
+      return null;
+    }
+
     const isInteger = typeof raw === 'number' && Number.isInteger(raw);
     const isFloat = typeof raw === 'number' && !Number.isInteger(raw);
 
